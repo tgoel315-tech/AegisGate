@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.mp4
+*.avi
+*.jpg
+*.jpeg
+*.png
+.env
+.venv
+env/
+venv/
