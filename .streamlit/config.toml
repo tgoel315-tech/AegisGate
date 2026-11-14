@@ -1,0 +1,18 @@
+[theme]
+base = "dark"
+primaryColor = "#FF3D8B"
+backgroundColor = "#0F1B3D"
+# 6 % white over #0F1B3D: the only tint used, so the palette stays navy / white / pink
+secondaryBackgroundColor = "#1D2949"
+textColor = "#FFFFFF"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = false
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
