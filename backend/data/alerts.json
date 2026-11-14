@@ -1,0 +1,32 @@
+[
+  {
+    "id": "alt_sample_01",
+    "timestamp": "16:08:27 14/11",
+    "time_raw": "16:08:27",
+    "type": "TAILGATING DETECTED",
+    "description": "Multiple occupants entered on single authorization. Person #2 followed through without valid credentials.",
+    "severity": "CRITICAL",
+    "snapshot_url": "/data/alerts/alt_sample_01.jpg",
+    "created_at": 1731577900
+  },
+  {
+    "id": "alt_073e7838",
+    "timestamp": "16:09:20 14/11",
+    "time_raw": "16:09:20",
+    "type": "TAILGATING DETECTED",
+    "description": "Unauthorized secondary occupant detected tailgating behind authorized staff.",
+    "severity": "CRITICAL",
+    "snapshot_url": "/data/alerts/alt_073e7838.jpg",
+    "created_at": 1794652760.4790535
+  },
+  {
+    "id": "alt_37713d25",
+    "timestamp": "16:09:38 14/11",
+    "time_raw": "16:09:38",
+    "type": "TAILGATING DETECTED",
+    "description": "Multiple occupants entered on single authorization. Person #2 followed through without valid credentials.",
+    "severity": "CRITICAL",
+    "snapshot_url": "/data/alerts/alt_37713d25.jpg",
+    "created_at": 1794652778.8737879
+  }
+]

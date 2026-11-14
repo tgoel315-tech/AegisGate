@@ -1,0 +1,41 @@
+[
+  {
+    "serial_no": 1,
+    "id": "rec_001",
+    "name": "Dr. Sarah Connor",
+    "time_in": "16:00:27",
+    "time_out": "16:03:27",
+    "status": "COMPLETED",
+    "badge_id": "E2806892"
+  },
+  {
+    "serial_no": 2,
+    "id": "rec_002",
+    "name": "Alex Vance",
+    "time_in": "16:00:27",
+    "time_out": "16:09:22",
+    "status": "COMPLETED",
+    "badge_id": "A4109823",
+    "timestamp_out": 1794652762.5175445
+  },
+  {
+    "serial_no": 3,
+    "id": "rec_003",
+    "name": "Elena Rostova",
+    "time_in": "16:02:27",
+    "time_out": "--:--:--",
+    "status": "INSIDE",
+    "badge_id": "B9302184"
+  },
+  {
+    "serial_no": 4,
+    "id": "rec_5cce50",
+    "name": "Marcus Brody",
+    "time_in": "16:09:18",
+    "time_out": "--:--:--",
+    "status": "INSIDE",
+    "badge_id": "C1045921",
+    "timestamp_in": 1794652758.4152367,
+    "timestamp_out": null
+  }
+]
