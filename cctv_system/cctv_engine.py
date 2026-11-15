@@ -212,7 +212,7 @@ class CCTVEngine:
 
         cv2.putText(frame, f"Card Taps : {self.zone_mgr.total_card_taps}  [Tap: 'T']", (sx + 10, 28),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.40, (255, 255, 255), 1, cv2.LINE_AA)
-        
+
         breaches = self.zone_mgr.total_tailgating_breaches + self.zone_mgr.total_unauthorized_crossings
         breach_color = (0, 0, 255) if breaches > 0 else (180, 180, 180)
         cv2.putText(frame, f"Entered: {self.zone_mgr.total_authorized_entered} | Breaches: {breaches}", (sx + 10, 48),

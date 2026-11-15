@@ -42,7 +42,7 @@
 
     <!-- LEFT COLUMN: Live Camera Feed + Alert Capture -->
     <div class="left-column">
-      
+
       <!-- Section B: Live Camera Feed -->
       <section class="camera-card">
         <div class="card-header">
@@ -61,7 +61,7 @@
         <div class="video-viewport" id="videoViewport">
           <!-- Live MJPEG Stream from Server / OpenCV -->
           <img id="liveVideoFeed" src="/api/video_feed" alt="Live CCTV Stream" onerror="handleStreamError(this)">
-          
+
           <!-- Fallback direct browser webcam (if needed) -->
           <video id="webcamVideo" autoplay playsinline muted style="display: none;"></video>
           <canvas id="tripwireCanvas" style="display: none;"></canvas>
@@ -119,7 +119,7 @@
         <!-- Horizontal Scrolling Cards Container: "photos keep going in like this" -->
         <div class="alert-carousel-wrapper">
           <button class="carousel-nav-btn prev" onclick="scrollCarousel(-1)" aria-label="Previous alerts">‹</button>
-          
+
           <div class="alert-cards-track" id="alertCardsTrack">
             <!-- Alert cards will be prepended dynamically here -->
             <div class="no-alerts-placeholder" id="noAlertsPlaceholder">
@@ -191,7 +191,7 @@
       <span class="demo-tag">HACKATHON JUDGE CONTROLLER</span>
       <span class="demo-tip">Trigger live physical/simulated access events</span>
     </div>
-    
+
     <div class="demo-buttons">
       <button class="btn-demo primary" onclick="demoAction('tap')" title="Arms gate for 4 seconds">
         <span class="icon">💳</span> Tap Badge

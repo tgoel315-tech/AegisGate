@@ -360,7 +360,7 @@ async def receive_hardware_event(hw: HardwareEvent):
     gate_state["authorized_credits"] += 1
 
     user_info = BADGE_DATABASE.get(hw.badge_uid, {"name": "Unknown", "role": "Visitor", "dept": "Guest"})
-    
+
     await manager.broadcast({
         "type": "BADGE_TAPPED",
         "badge_uid": hw.badge_uid,
@@ -469,7 +469,7 @@ async def handle_demo_action(demo: DemoAction):
             if r.get("status") == "INSIDE":
                 target = r
                 break
-        
+
         if not target and records_db:
             target = records_db[-1]
 
@@ -526,7 +526,7 @@ class VideoStreamer:
                 cv2.line(frame, (div_x, 0), (div_x, h), (0, 0, 255), 2)
                 cv2.putText(frame, "PUBLIC ZONE", (div_x - 130, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (220, 220, 220), 1)
                 cv2.putText(frame, "SECURE ZONE", (div_x + 20, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 220, 255), 1)
-                
+
                 # Timestamp
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 cv2.putText(frame, f"CAM-01 [LIVE] | {now_str}", (15, h - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (200, 200, 200), 1)

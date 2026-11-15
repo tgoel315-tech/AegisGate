@@ -1,7 +1,7 @@
-fastapi>=0.115.0
-uvicorn>=0.30.0
-websockets>=13.0
-pydantic>=2.8.0
-opencv-python>=4.10.0
-numpy>=1.26.0
-pillow>=10.4.0
+# Everything for running the whole system on one laptop.
+# (Streamlit Cloud uses dashboard/requirements.txt; Maritime uses rag/requirements.txt.)
+-r backend/requirements.txt
+-r vision/requirements.txt
+-r rag/requirements.txt
+-r dashboard/requirements.txt
+pytest>=8

@@ -1,0 +1,18 @@
+[theme]
+base = "dark"
+primaryColor = "#FF3D8B"
+backgroundColor = "#121318"
+# soft ink background; navy #0F1B3D stays as an accent tint, pink #FF3D8B as the highlight
+secondaryBackgroundColor = "#1B1D24"
+textColor = "#ECEAE6"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+showSidebarNavigation = false
+
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true

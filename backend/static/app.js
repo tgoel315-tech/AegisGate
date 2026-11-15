@@ -47,7 +47,7 @@ function updateClocks() {
   const now = new Date();
   const timeStr = now.toTimeString().split(" ")[0];
   const dateStr = now.toISOString().split("T")[0];
-  
+
   if (clockDisplay) clockDisplay.textContent = `${timeStr} UTC+05:30`;
   if (hudTimestamp) hudTimestamp.textContent = `${dateStr} ${timeStr}`;
 }

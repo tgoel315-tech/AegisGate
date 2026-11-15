@@ -1,12 +1,18 @@
 __pycache__/
 *.py[cod]
-*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# secrets
+.env
+.streamlit/secrets.toml
+
+# runtime data (database + evidence snapshots)
+backend/data/
+
+# model weights / media
+*.pt
 *.mp4
 *.avi
-*.jpg
-*.jpeg
-*.png
-.env
-.venv
-env/
-venv/

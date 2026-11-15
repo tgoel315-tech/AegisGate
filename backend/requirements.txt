@@ -1,0 +1,7 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0
+reportlab>=4.2
+pillow>=10.4
+# Only needed if DATABASE_URL points at Supabase / Postgres:
+psycopg[binary]>=3.2

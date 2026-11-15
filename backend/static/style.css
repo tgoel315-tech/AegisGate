@@ -18,30 +18,30 @@
   --bg-card-hover: #1E346E;
   --border-subtle: #233973;
   --border-highlight: #355099;
-  
+
   --text-primary: #FFFFFF;
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
-  
+
   --hot-pink: #FF3D8B;
   --hot-pink-glow: rgba(255, 61, 139, 0.4);
   --hot-pink-subtle: rgba(255, 61, 139, 0.15);
-  
+
   --alert-red: #EF4444;
   --alert-red-glow: rgba(239, 68, 68, 0.4);
   --alert-red-subtle: rgba(239, 68, 68, 0.15);
-  
+
   --success-green: #10B981;
   --success-green-glow: rgba(16, 185, 129, 0.35);
-  
+
   --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
   --radius-xl: 18px;
-  
+
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -60,7 +60,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  background-image: 
+  background-image:
     radial-gradient(circle at 15% 10%, rgba(35, 57, 115, 0.25) 0%, transparent 45%),
     radial-gradient(circle at 85% 85%, rgba(255, 61, 139, 0.08) 0%, transparent 40%);
   background-attachment: fixed;
