@@ -33,8 +33,8 @@ def test_jitter_on_line_counts_once():
 
 def test_two_people_counted_separately():
     w = Tripwire(TripwireConfig(), 640, 480)
-    assert walk(w, 1, [100, 200, 380, 400]) == ["IN"]
-    assert walk(w, 2, [120, 220, 390, 420], t0=0.5) == ["IN"]
+    assert walk(w, 1, [100, 200, 400, 420]) == ["IN"]
+    assert walk(w, 2, [120, 220, 410, 430], t0=0.5) == ["IN"]
 
 
 def test_horizontal_line():
@@ -46,3 +46,22 @@ def test_horizontal_line():
 def test_cooldown_blocks_instant_bounce():
     w = Tripwire(TripwireConfig(cooldown_s=2.0), 640, 480)
     assert walk(w, 1, [100, 400, 410, 100, 90], dt=0.1) == ["IN"]
+
+
+def test_person_swaying_near_line_never_counts():
+    """The reported bug: someone sitting/standing at the line produced IN/OUT/IN/OUT."""
+    import math
+    w = Tripwire(TripwireConfig(), 640, 480)
+    xs = [320 + 60 * math.sin(i / 3) for i in range(300)]       # +/-60 px around the line, 30 s
+    assert walk(w, 1, xs) == []
+
+
+def test_walk_in_then_back_out_counts_both():
+    w = Tripwire(TripwireConfig(), 640, 480)
+    xs = [80, 150, 250, 330, 420, 500, 520] + [520] * 40 + [500, 420, 330, 250, 150, 90]
+    assert walk(w, 1, xs) == ["IN", "OUT"]
+
+
+def test_arm_distance_scales_with_frame():
+    w = Tripwire(TripwireConfig(arm_ratio=0.12), 1280, 720)
+    assert w.arm_px == 153

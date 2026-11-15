@@ -1,10 +1,10 @@
 [theme]
 base = "dark"
 primaryColor = "#FF3D8B"
-backgroundColor = "#0F1B3D"
-# 6 % white over #0F1B3D: the only tint used, so the palette stays navy / white / pink
-secondaryBackgroundColor = "#1D2949"
-textColor = "#FFFFFF"
+backgroundColor = "#121318"
+# soft ink background; navy #0F1B3D stays as an accent tint, pink #FF3D8B as the highlight
+secondaryBackgroundColor = "#1B1D24"
+textColor = "#ECEAE6"
 font = "sans serif"
 
 [client]

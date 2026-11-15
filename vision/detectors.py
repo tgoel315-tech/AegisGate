@@ -12,6 +12,7 @@ The camera only tracks movement. It never identifies who someone is.
 """
 import math
 from collections import OrderedDict
+from pathlib import Path
 from dataclasses import dataclass
 from typing import List, Tuple
 
@@ -37,10 +38,20 @@ class YoloByteTrack:
         self.model = YOLO(model)
         self.conf, self.imgsz, self.device = conf, imgsz, device
         self.name = f"{model.replace('.pt', '')} + ByteTrack"
+        # Tuned config: keeps lost tracks longer and needs higher confidence to open a new ID,
+        # so fewer IDs are burnt on flicker. Falls back to the stock config if rejected.
+        self.tracker_cfg = str(Path(__file__).with_name("aegis_bytetrack.yaml"))
 
     def update(self, frame) -> List[Track]:
-        result = self.model.track(frame, persist=True, classes=[0], conf=self.conf, imgsz=self.imgsz,
-                                  tracker="bytetrack.yaml", device=self.device, verbose=False)[0]
+        try:
+            result = self.model.track(frame, persist=True, classes=[0], conf=self.conf, imgsz=self.imgsz,
+                                      tracker=self.tracker_cfg, device=self.device, verbose=False)[0]
+        except Exception as exc:
+            if self.tracker_cfg == "bytetrack.yaml":
+                raise
+            print(f"[vision] custom tracker config rejected ({exc!r}); using bytetrack.yaml")
+            self.tracker_cfg = "bytetrack.yaml"
+            return self.update(frame)
         boxes = result.boxes
         if boxes is None or boxes.id is None:
             return []

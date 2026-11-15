@@ -10,7 +10,7 @@ from typing import Optional
 
 from PIL import Image, ImageDraw
 
-NAVY = (15, 27, 61)
+NAVY = (18, 19, 24)      # ink, matches the dashboard background
 WHITE = (255, 255, 255)
 PINK = (255, 61, 139)
 
@@ -30,9 +30,9 @@ def placeholder_frame(title: str, subtitle: str = "", w: int = 640, h: int = 480
     img = Image.new("RGB", (w, h), NAVY)
     d = ImageDraw.Draw(img)
     for x in range(0, w, 40):
-        d.line([(x, 0), (x, h)], fill=(27, 39, 75))
+        d.line([(x, 0), (x, h)], fill=(30, 32, 40))
     for y in range(0, h, 40):
-        d.line([(0, y), (w, y)], fill=(27, 39, 75))
+        d.line([(0, y), (w, y)], fill=(30, 32, 40))
     d.line([(w // 2, 0), (w // 2, h)], fill=PINK, width=2)
     d.text((20, 20), title, fill=WHITE)
     if subtitle:

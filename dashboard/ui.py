@@ -9,24 +9,34 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 NAVY, WHITE, PINK = "#0F1B3D", "#FFFFFF", "#FF3D8B"
+INK = "#121318"        # page background: neutral ink, so the UI no longer reads as all-blue
 
 CSS = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 :root { --navy:#0F1B3D; --white:#FFFFFF; --pink:#FF3D8B;
-        --w70:rgba(255,255,255,.70); --w50:rgba(255,255,255,.50); --w12:rgba(255,255,255,.12);
-        --w06:rgba(255,255,255,.06); --p15:rgba(255,61,139,.15); }
+        --ink:#121318; --surface:#17191F; --text:#ECEAE6;
+        --w70:rgba(236,234,230,.72); --w50:rgba(236,234,230,.50); --w12:rgba(236,234,230,.09);
+        --w06:rgba(236,234,230,.05); --p15:rgba(255,61,139,.14); }
+/* soft background: neutral ink with two faint light pools (pink + navy) for the glass to pick up */
+[data-testid="stApp"] {
+  background:
+    radial-gradient(900px 620px at 88% 12%, rgba(255,61,139,.07), transparent 62%),
+    radial-gradient(820px 720px at 78% 88%, rgba(15,27,61,.85), transparent 66%),
+    radial-gradient(700px 500px at 8% 100%, rgba(15,27,61,.45), transparent 70%),
+    var(--ink);
+  color:var(--text); }
 html, body, [class*="css"], .stMarkdown, .stButton button { font-family:'Plus Jakarta Sans',sans-serif; }
 [data-testid="stHeader"] { background:transparent; }
 [data-testid="stDecoration"] { display:none; }
 .block-container { padding-top:1.1rem; padding-bottom:1rem; max-width:1600px; }
-[data-testid="stSidebar"] { background:var(--navy); border-right:1px solid var(--w12); }
+[data-testid="stSidebar"] { background:var(--surface); border-right:1px solid var(--w12); }
 [data-testid="stSidebar"] .stMarkdown p, [data-testid="stSidebar"] .stMarkdown li { font-size:.8rem; line-height:1.45; }
 hr { border-color:var(--w12) !important; }
 
 /* buttons */
 [data-testid="stButton"] button, [data-testid="stDownloadButton"] button, [data-testid="stFormSubmitButton"] button, [data-testid="stPopover"] button {
-  background:transparent; color:var(--white); border:1px solid var(--w12); border-radius:8px;
+  background:rgba(236,234,230,.03); color:var(--text); border:1px solid var(--w12); border-radius:8px;
   font-weight:600; font-size:.78rem; letter-spacing:.02em; padding:.32rem .8rem; min-height:0; }
 [data-testid="stButton"] button:hover, [data-testid="stDownloadButton"] button:hover, [data-testid="stPopover"] button:hover {
   border-color:var(--pink); color:var(--pink); background:transparent; }
@@ -61,12 +71,12 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover { opacity:.
 .ag-header .left, .ag-header .right { display:flex; gap:10px; align-items:center; }
 .ag-header .right { justify-content:flex-end; }
 .ag-title { text-align:center; }
-.ag-title .h { font-size:1.55rem; line-height:1.2; font-weight:800; letter-spacing:.32em; margin:0; padding:0; color:var(--white); }
+.ag-title .h { font-size:1.55rem; line-height:1.2; font-weight:800; letter-spacing:.32em; margin:0; padding:0; color:var(--text); }
 .ag-title span { font-size:.6rem; letter-spacing:.24em; color:var(--w50); font-weight:600; }
 .ag-title b { color:var(--pink); }
 
 /* KPI strip */
-.ag-kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:0; border:1px solid var(--w12); border-radius:14px;
+.ag-kpis { display:grid; grid-template-columns:repeat(6,1fr); gap:0; border:1px solid var(--w12); border-radius:14px; background:var(--surface);
            margin-bottom:16px; }
 .ag-kpi { padding:10px 16px; border-right:1px solid var(--w12); }
 .ag-kpi:last-child { border-right:none; }
@@ -76,7 +86,7 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover { opacity:.
 
 /* camera */
 .ag-cam-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-.ag-video { position:relative; border:1px solid var(--w12); border-radius:14px; overflow:hidden; background:#0b1430;
+.ag-video { position:relative; border:1px solid var(--w12); border-radius:14px; overflow:hidden; background:#0D0E12;
             aspect-ratio:4/3; max-height:470px; width:100%; }
 .ag-video img { width:100%; height:100%; object-fit:contain; display:block; }
 .ag-banner { margin-top:8px; border-radius:10px; padding:8px 12px; background:var(--pink); color:var(--navy);
@@ -88,12 +98,22 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover { opacity:.
 /* alert capture */
 .ag-strip { display:flex; gap:12px; overflow-x:auto; padding-bottom:6px; scroll-snap-type:x mandatory; }
 .ag-strip::-webkit-scrollbar { height:6px; } .ag-strip::-webkit-scrollbar-thumb { background:var(--w12); border-radius:6px; }
-.ag-shot { flex:0 0 210px; scroll-snap-align:start; border:1px solid var(--w12); border-radius:12px; overflow:hidden; }
-.ag-shot img { width:100%; height:128px; object-fit:cover; display:block; background:#0b1430; }
+.ag-shot { background:var(--surface); flex:0 0 210px; scroll-snap-align:start; border:1px solid var(--w12); border-radius:12px; overflow:hidden; }
+.ag-shot img { width:100%; height:128px; object-fit:cover; display:block; background:#0D0E12; }
 .ag-shot .meta { padding:8px 10px; font-size:.7rem; }
 .ag-shot .meta .t { font-weight:700; font-size:.74rem; }
 .ag-shot.crit { border-color:var(--pink); }
 .ag-empty { color:var(--w50); font-size:.78rem; padding:26px 0; text-align:center; border:1px dashed var(--w12); border-radius:12px; }
+
+/* glassmorphism: right-hand live feed */
+.st-key-glass_feed {
+  background:linear-gradient(160deg, rgba(255,255,255,.07), rgba(255,255,255,.02) 55%, rgba(15,27,61,.18));
+  backdrop-filter:blur(18px) saturate(140%); -webkit-backdrop-filter:blur(18px) saturate(140%);
+  border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:16px 18px 10px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 24px 48px -24px rgba(0,0,0,.65); }
+.st-key-glass_feed [data-baseweb="tab-list"] { border-bottom-color:rgba(255,255,255,.08); }
+.st-key-glass_feed .ag-row { border-bottom-color:rgba(255,255,255,.06); }
+.st-key-glass_feed [data-testid="stDownloadButton"] button { background:rgba(255,61,139,.08); backdrop-filter:blur(6px); }
 
 /* feed */
 .ag-row { display:grid; grid-template-columns:58px 64px 1fr; gap:10px; align-items:start; padding:9px 2px;
@@ -105,7 +125,7 @@ button[kind="primary"]:hover, button[kind="primaryFormSubmit"]:hover { opacity:.
           font-size:.6rem; font-weight:700; letter-spacing:.1em; color:var(--w70); }
 .ag-tag.CRITICAL { background:var(--pink); border-color:var(--pink); color:var(--navy); }
 .ag-tag.HIGH { border-color:var(--pink); color:var(--pink); }
-.ag-tag.MEDIUM { border-color:var(--white); color:var(--white); }
+.ag-tag.MEDIUM { border-color:var(--text); color:var(--text); }
 .ag-inc { border-left:2px solid var(--pink); padding-left:8px; margin-left:-10px; }
 
 /* entry/exit table */
@@ -237,7 +257,7 @@ def alert_strip(incidents: list, images: dict, clock: Clock) -> str:
         crit = inc["risk"]["severity"] in ("CRITICAL", "HIGH")
         cards.append(f"""
 <div class="ag-shot {'crit' if crit else ''}">
-  {'<img src="' + img + '"/>' if img else '<div style="height:128px;background:#0b1430"></div>'}
+  {'<img src="' + img + '"/>' if img else '<div style="height:128px;background:#0D0E12"></div>'}
   <div class="meta"><div class="t">{esc(inc['title'])}</div>
     <div style="display:flex;justify-content:space-between;margin-top:4px">
       <span class="ag-mono" style="color:var(--w50)">{clock.fmt(inc['created_at'])}</span>

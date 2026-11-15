@@ -84,7 +84,7 @@ with left:
             if snap:
                 images[snap] = ui.data_uri(svc.snapshot_bytes(cfg.backend_url, snap))
         st.markdown(f"""<div style="display:flex;justify-content:space-between;align-items:baseline;margin:18px 0 8px">
-            <span class="ag-label" style="color:#fff;font-size:.74rem">Alert capture</span>
+            <span class="ag-label" style="color:var(--text);font-size:.74rem">Alert capture</span>
             <span class="ag-pill {'pink' if incidents else ''}">{len(incidents)} INCIDENTS</span></div>""",
                     unsafe_allow_html=True)
         st.markdown(ui.alert_strip(incidents, images, clock), unsafe_allow_html=True)
@@ -97,10 +97,9 @@ FILTERS = {"All": None, "Incidents": {"INCIDENT"}, "Access": {"BADGE", "ENTRY"},
            "Camera": {"CROSSING"}, "Door": {"DOOR"}}
 
 with right:
-    @st.fragment(run_every=1)
-    def live_feed():
+    def _live_feed_body():
         data = state()
-        st.markdown('<div class="ag-label" style="color:#fff;font-size:.74rem;margin-bottom:4px">Real-time feed</div>',
+        st.markdown('<div class="ag-label" style="color:var(--text);font-size:.74rem;margin-bottom:4px">Real-time feed</div>',
                     unsafe_allow_html=True)
         tab_feed, tab_log = st.tabs(["LIVE FEED", "ENTRY / EXIT LOG"])
         if not data:
@@ -112,7 +111,7 @@ with right:
                                           label_visibility="collapsed") or "All"
             kinds = FILTERS[choice]
             items = [f for f in data["feed"] if not kinds or f["kind"] in kinds]
-            box = st.container(height=560, border=False)
+            box = st.container(height=520, border=False)
             with box:
                 if not items:
                     st.markdown('<div class="ag-empty">Nothing yet.</div>', unsafe_allow_html=True)
@@ -137,8 +136,13 @@ with right:
             g = data["gate"]["counts"]
             st.markdown(f'<span class="ag-pill">ACTIVE INSIDE · {g.get("inside", 0)}</span>',
                         unsafe_allow_html=True)
-            with st.container(height=560, border=False):
+            with st.container(height=520, border=False):
                 st.markdown(ui.records_table(data["records"], clock), unsafe_allow_html=True)
+
+    @st.fragment(run_every=1)
+    def live_feed():
+        with st.container(key="glass_feed"):     # styled as frosted glass in ui.CSS
+            _live_feed_body()
 
     live_feed()
 
@@ -166,9 +170,9 @@ if cols[6].button("Reset", key="reset", use_container_width=True):
 
 # ------------------------------------------------------------------ sidebar: assistant
 with st.sidebar:
-    st.markdown('<div class="ag-label" style="color:#fff;font-size:.8rem">Incident assistant</div>'
+    st.markdown('<div class="ag-label" style="color:var(--text);font-size:.8rem">Incident assistant</div>'
                 '<div style="color:rgba(255,255,255,.5);font-size:.72rem;margin:4px 0 12px">RAG over incidents + SOPs · '
-                'LLM via Prune · hosted on Maritime. Advisory only: it never decides access.</div>',
+                'LLM via Grok / Groq / Prune · runs inside this app. Advisory only: it never decides access.</div>',
                 unsafe_allow_html=True)
     history = st.session_state.setdefault("chat", [])
     with st.form("ask", clear_on_submit=True, border=False):
@@ -182,7 +186,7 @@ with st.sidebar:
         st.markdown(f"**{ui.esc(question)}**")
         st.markdown(res.get("answer", ""))
         mode = res.get("mode")
-        note = {"llm": f"LLM · {res.get('model', '')} via Prune",
+        note = {"llm": f"LLM · {res.get('model', '')} via {res.get('provider', '')}",
                 "extractive": f"No LLM ({res.get('reason', '')}) · top matching records",
                 "error": "Assistant unreachable"}.get(mode, mode or "")
         srcs = " ".join(f"`{s['id']}`" for s in res.get("sources", [])[:6])
@@ -195,4 +199,4 @@ with st.sidebar:
             st.dataframe(rules["rules"], hide_index=True, use_container_width=True)
             st.caption(" · ".join(f"{k} {v}" for k, v in rules["severity_bands"].items()))
     st.caption(f"Backend `{cfg.backend_url}`  \nWebSocket {'connected' if link.connected else 'down: ' + str(link.error)}"
-               f"  \nAgent `{cfg.rag_url}`")
+               f"  \nAssistant `{'built into this app' if cfg.rag_url.lower() in ('', 'embedded', 'local') else cfg.rag_url}`")

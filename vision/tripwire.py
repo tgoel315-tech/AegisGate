@@ -1,11 +1,14 @@
 """
 Direction-aware virtual tripwire (Feature 2).
 
-Each tracked person keeps a *stable side* of the line (A or B). A crossing is
-reported only when the person is seen on the other side, outside a dead band
-around the line, for `confirm_frames` consecutive frames. After a crossing the
-same track can't produce another one for `cooldown_s` seconds. Together these
-stop jitter near the line from counting the same person repeatedly.
+Arming rule: a crossing is counted only when a person
+  1. was seen clearly on one side, at least `arm_ratio` of the frame away from the line
+     (the track is "armed" on that side), and then
+  2. is seen clearly on the OTHER side, again at least that far away,
+     for `confirm_frames` consecutive frames.
+Someone standing or swaying near the line never satisfies both, so they are
+never counted. After a crossing, the same track can't count again for
+`cooldown_s` seconds.
 
     vertical line   : side A = left of the line,  side B = right
     horizontal line : side A = above the line,    side B = below
@@ -20,17 +23,17 @@ from typing import Dict, Iterable, Optional, Tuple
 class TripwireConfig:
     orientation: str = "vertical"       # vertical | horizontal
     position: float = 0.5               # 0..1 of frame width (vertical) or height (horizontal)
-    band_px: int = 25                   # dead band either side of the line
+    arm_ratio: float = 0.12             # how far past the line counts as "clearly on a side"
+    band_px: int = 25                   # minimum arm distance in pixels
     invert: bool = False                # swap IN / OUT
     confirm_frames: int = 2
-    cooldown_s: float = 2.0
+    cooldown_s: float = 3.0
     forget_after_s: float = 10.0
 
 
 @dataclass
 class _TrackState:
-    side: Optional[str] = None
-    candidate: Optional[str] = None
+    armed: Optional[str] = None         # side where the track was last clearly seen
     candidate_n: int = 0
     last_cross: float = -1e9
     last_seen: float = field(default_factory=time.time)
@@ -44,26 +47,36 @@ class Tripwire:
 
     # ---------------------------------------------------------- geometry
     @property
-    def coord(self) -> int:
-        size = self.w if self.cfg.orientation == "vertical" else self.h
-        return int(size * self.cfg.position)
+    def size(self) -> int:
+        return self.w if self.cfg.orientation == "vertical" else self.h
 
-    def endpoints(self) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-        c = self.coord
+    @property
+    def coord(self) -> int:
+        return int(self.size * self.cfg.position)
+
+    @property
+    def arm_px(self) -> int:
+        return max(self.cfg.band_px, int(self.size * self.cfg.arm_ratio))
+
+    def _line(self, c: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
         if self.cfg.orientation == "vertical":
             return (c, 0), (c, self.h)
         return (0, c), (self.w, c)
 
-    def side_of(self, point: Tuple[float, float]) -> Optional[str]:
+    def endpoints(self):
+        return self._line(self.coord)
+
+    def arm_lines(self):
+        """The two 'clearly on a side' boundaries, for drawing."""
+        return self._line(self.coord - self.arm_px), self._line(self.coord + self.arm_px)
+
+    def side_of(self, point: Tuple[float, float]) -> Tuple[str, bool]:
+        """Returns (side, far_enough)."""
         v = point[0] if self.cfg.orientation == "vertical" else point[1]
-        if v < self.coord - self.cfg.band_px:
-            return "A"
-        if v > self.coord + self.cfg.band_px:
-            return "B"
-        return None                       # inside the dead band: no decision
+        d = v - self.coord
+        return ("A" if d < 0 else "B"), abs(d) >= self.arm_px
 
     def in_label_side(self) -> str:
-        """Which side is 'inside' (where IN crossings end up)."""
         return "A" if self.cfg.invert else "B"
 
     # ---------------------------------------------------------- controls
@@ -84,28 +97,24 @@ class Tripwire:
     def update(self, track_id, point: Tuple[float, float], now: Optional[float] = None) -> Optional[str]:
         """Feed one track position. Returns 'IN', 'OUT' or None."""
         now = time.time() if now is None else now
-        tid = str(track_id)
-        st = self.states.setdefault(tid, _TrackState(last_seen=now))
+        st = self.states.setdefault(str(track_id), _TrackState(last_seen=now))
         st.last_seen = now
-        side = self.side_of(point)
-        if side is None:
+        side, far = self.side_of(point)
+
+        if not far:                              # near the line: never decides anything
+            st.candidate_n = 0
             return None
-        if st.side is None:                # first confident position = where they came from
-            st.side = side
+        if st.armed is None:                     # first clear position = where they came from
+            st.armed = side
             return None
-        if side == st.side:
-            st.candidate, st.candidate_n = None, 0
+        if side == st.armed:
+            st.candidate_n = 0
             return None
 
-        if st.candidate == side:
-            st.candidate_n += 1
-        else:
-            st.candidate, st.candidate_n = side, 1
+        st.candidate_n += 1                      # clearly on the opposite side
         if st.candidate_n < self.cfg.confirm_frames:
             return None
-
-        previous, st.side = st.side, side
-        st.candidate, st.candidate_n = None, 0
+        previous, st.armed, st.candidate_n = st.armed, side, 0
         if now - st.last_cross < self.cfg.cooldown_s:
             return None
         st.last_cross = now

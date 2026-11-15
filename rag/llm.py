@@ -1,7 +1,6 @@
 """
-LLM calls go through Prune (https://www.withprune.com), an OpenAI-compatible
-gateway: it trims cost, keeps the provider key in its vault, blocks risky
-requests (Shield) and returns a signed receipt (`prune_metadata`) on every call.
+LLM call for the incident assistant. Works with any OpenAI-compatible provider:
+xAI Grok, Groq, Prune or OpenAI. The provider is detected from the key (see config.py).
 """
 from typing import Optional, Tuple
 
@@ -16,35 +15,66 @@ Rules:
 - Cite sources in square brackets using the block ids, e.g. [INC-20261114-3FE987] or [sop_tailgating#2].
 - Be brief and concrete: times, counts, badge ids, scores."""
 
+_state = {"client": None, "model": None}
+
 
 def _client():
-    from openai import OpenAI
-    return OpenAI(base_url=config.PRUNE_BASE_URL, api_key=config.PRUNE_API_KEY,
-                  default_headers={"X-Prune-Feature-Id": config.PRUNE_FEATURE_ID,
-                                   "X-Prune-Workload": "aegisgate"})
+    if _state["client"] is None:
+        from openai import OpenAI
+        headers = {}
+        if config.LLM_PROVIDER == "prune":
+            headers = {"X-Prune-Feature-Id": config.PRUNE_FEATURE_ID, "X-Prune-Workload": "aegisgate"}
+        _state["client"] = OpenAI(base_url=config.LLM_BASE_URL, api_key=config.LLM_API_KEY,
+                                  default_headers=headers or None, timeout=30)
+    return _state["client"]
+
+
+def pick_model() -> str:
+    """Use LLM_MODEL if set; otherwise the first preferred model this key can access."""
+    if config.LLM_MODEL:
+        return config.LLM_MODEL
+    if _state["model"]:
+        return _state["model"]
+    preferred = config.PREFERRED_MODELS.get(config.LLM_PROVIDER, [])
+    try:
+        available = [m.id for m in _client().models.list().data]
+    except Exception:
+        available = []
+    choice = next((m for m in preferred if m in available), None)
+    if not choice and available:            # nothing on our list: take a small chat model if we can spot one
+        text = [m for m in available if not any(x in m for x in ("image", "vision", "imagine", "whisper",
+                                                                  "tts", "embed", "guard", "video"))]
+        choice = next((m for m in text if any(x in m for x in ("mini", "fast", "instant"))), None) or \
+            (text[0] if text else available[0])
+    _state["model"] = choice or (preferred[0] if preferred else "gpt-4o-mini")
+    return _state["model"]
+
+
+def status() -> dict:
+    return {"provider": config.LLM_LABEL or None, "configured": bool(config.LLM_API_KEY),
+            "base_url": config.LLM_BASE_URL or None}
 
 
 def generate(question: str, context: str) -> Tuple[Optional[str], dict]:
     """Returns (answer or None, info). None means 'use the extractive fallback'."""
-    if not config.PRUNE_API_KEY:
-        return None, {"mode": "extractive", "reason": "PRUNE_API_KEY not set"}
+    if not config.LLM_API_KEY:
+        return None, {"mode": "extractive", "reason": "no LLM key set"}
+    model = pick_model()
     try:
         resp = _client().chat.completions.with_raw_response.create(
-            model=config.PRUNE_MODEL,
+            model=model,
             temperature=0.1,
-            max_tokens=450,
+            max_tokens=600,
             messages=[{"role": "system", "content": SYSTEM_PROMPT},
                       {"role": "user", "content": f"CONTEXT:\n{context}\n\nQUESTION: {question}"}],
         )
         completion = resp.parse()
-        receipt = completion.model_dump().get("prune_metadata")
-        return completion.choices[0].message.content, {
-            "mode": "llm", "model": config.PRUNE_MODEL, "gateway": "prune", "receipt": receipt,
-            "pipeline": resp.headers.get("x-prune-pipeline-label")}
+        text = (completion.choices[0].message.content or "").strip()
+        if not text:
+            return None, {"mode": "extractive", "reason": f"{config.LLM_LABEL} returned an empty answer"}
+        return text, {"mode": "llm", "model": model, "provider": config.LLM_LABEL,
+                      "receipt": completion.model_dump().get("prune_metadata")}
     except Exception as exc:
-        shield = None
-        response = getattr(exc, "response", None)
-        if response is not None:
-            shield = response.headers.get("x-prune-shield-code")
-        return None, {"mode": "extractive", "reason": f"LLM call failed: {exc.__class__.__name__}",
-                      "shield_code": shield}
+        detail = str(getattr(exc, "message", "") or exc)[:160]
+        return None, {"mode": "extractive", "provider": config.LLM_LABEL, "model": model,
+                      "reason": f"{config.LLM_LABEL} call failed: {exc.__class__.__name__}: {detail}"}

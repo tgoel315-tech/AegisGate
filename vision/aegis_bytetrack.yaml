@@ -1,0 +1,9 @@
+# ByteTrack settings tuned for a doorway webcam.
+# Stock values in brackets. Ultralytics loads this via model.track(tracker=...).
+tracker_type: bytetrack
+track_high_thresh: 0.5   # [0.25] first-stage association threshold
+track_low_thresh: 0.1    # [0.1]  second-stage association threshold
+new_track_thresh: 0.6    # [0.25] confidence needed to start a NEW id: stops flicker from burning ids
+track_buffer: 60         # [30]   frames a lost person is remembered: same id after short occlusion
+match_thresh: 0.8        # [0.8]  matching threshold
+fuse_score: True         # [True]

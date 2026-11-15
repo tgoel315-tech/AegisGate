@@ -13,6 +13,7 @@ Run from the repository root:
 
 Keys in the preview window:
     a / d   move the line (left/right or up/down)     o   switch vertical / horizontal
+    The grey dashed lines are the arm zone: walk from beyond one to beyond the other to count.
     r       reverse IN/OUT direction                  m   mirror camera on/off
     c       clear counters                            q   quit
 """
@@ -43,7 +44,8 @@ def parse_args():
     p.add_argument("--position", type=float, default=float(os.getenv("TRIPWIRE_POSITION", 0.5)))
     p.add_argument("--invert", action="store_true", default=os.getenv("TRIPWIRE_INVERT", "0") == "1",
                    help="swap IN and OUT")
-    p.add_argument("--band", type=int, default=25, help="dead-band in px around the line")
+    p.add_argument("--arm", type=float, default=float(os.getenv("TRIPWIRE_ARM", 0.12)),
+                   help="how far past the line (fraction of frame) a person must go to count")
     p.add_argument("--no-mirror", action="store_true", help="don't flip the webcam image")
     p.add_argument("--model", default=os.getenv("YOLO_MODEL", "yolov8n.pt"))
     p.add_argument("--conf", type=float, default=0.4)
@@ -67,6 +69,12 @@ def open_capture(args):
 
 def draw(frame, tracks, wire, counts, unique, fps, detector_name, online, flashes):
     h, w = frame.shape[:2]
+    for (ax1, ay1), (ax2, ay2) in wire.arm_lines():          # "clearly on a side" boundaries
+        for i in range(0, max(h, w), 14):                    # dashed
+            if wire.cfg.orientation == "vertical":
+                cv2.line(frame, (ax1, i), (ax1, min(i + 6, h)), (120, 120, 120), 1)
+            else:
+                cv2.line(frame, (i, ay1), (min(i + 6, w), ay1), (120, 120, 120), 1)
     (x1, y1), (x2, y2) = wire.endpoints()
     cv2.line(frame, (x1, y1), (x2, y2), PINK, 2)
     # IN arrow
@@ -109,7 +117,7 @@ def main():
         raise SystemExit("Camera opened but returned no frames.")
     h, w = frame.shape[:2]
     wire = Tripwire(TripwireConfig(orientation=args.orientation, position=args.position,
-                                   band_px=args.band, invert=args.invert), w, h)
+                                   arm_ratio=args.arm, invert=args.invert), w, h)
     mirror = not args.no_mirror and not args.source
     counts = {"IN": 0, "OUT": 0}
     hits, people, flashes = {}, set(), {}

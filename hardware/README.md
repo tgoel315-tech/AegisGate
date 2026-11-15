@@ -36,6 +36,10 @@ same broadcast `type` names. It returns the same `status` values too, so the ESP
    look like a recent epoch are replaced with the server's receive time.
 5. **There is no gate id.** Everything is treated as gate `gate-01`.
 
+## Connecting the real board
+
+Step-by-step (Wi-Fi, laptop IP, firewall, checks): [`docs/CONNECT_EVERYTHING.md`](../docs/CONNECT_EVERYTHING.md#part-c--connect-the-esp32-hardware).
+
 ## Testing without the board
 
 ```bash

@@ -1,0 +1,125 @@
+# Connect everything: one Streamlit dashboard + ESP32 + webcam
+
+```
+  ESP32-S3 ──Wi-Fi, HTTP──▶  LAPTOP (the "edge box")                       Streamlit Cloud
+  RFID + door contact        ├─ backend   :8000  ◀── ngrok HTTPS tunnel ──▶ dashboard/app.py
+                             ├─ vision    (webcam)                          + built-in assistant
+                             └─ ngrok                                         (LLM: Grok / Groq)
+```
+
+Streamlit can only host the **dashboard**. It can't receive the ESP32's HTTP calls and can't
+open your webcam. So the laptop runs the backend and vision, ngrok gives the backend a public
+address, and the Streamlit Cloud dashboard reads everything from that address. The assistant
+runs **inside** the Streamlit app (`RAG_URL = "embedded"`), so there is no second server to host.
+
+---
+
+## Part A — Laptop (every time you demo)
+
+Open 3 terminals in `D:\AegisGate` (run `.venv\Scripts\activate` in each first):
+
+```bat
+uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+python -m vision.main --camera 0
+ngrok http 8000 --url=<your-name>.ngrok-free.app
+```
+
+`--host 0.0.0.0` is required so the ESP32 can reach the backend over Wi-Fi.
+
+## Part B — Streamlit Cloud (once)
+
+1. Push the repo to GitHub.
+2. share.streamlit.io → **Create app** → repo `tgoel315-tech/AegisGate`, branch `main`,
+   main file **`dashboard/app.py`**. Advanced settings → Python **3.11**.
+3. Advanced settings → **Secrets**:
+   ```toml
+   BACKEND_URL = "https://<your-name>.ngrok-free.app"
+   RAG_URL = "embedded"
+   LLM_API_KEY = "xai-..."        # your Grok key (or gsk_... for Groq)
+   CONTROL_TOKEN = "<same value as in backend\.env>"
+   TIMEZONE = "Asia/Kolkata"
+   ```
+4. Deploy. If the header shows **BACKEND OFFLINE**, the laptop backend or ngrok isn't running.
+
+Because the ngrok static domain never changes, you set the secrets once.
+
+---
+
+## Part C — Connect the ESP32 hardware
+
+The hardware script is restricted, so **nothing changes on the board**. The backend already
+accepts exactly what it sends (`POST /api/event/hardware` with `BADGE_TAP` / `DOOR_OPEN`).
+You only need the board to reach the laptop on port 8000.
+
+### 1. Find out where the firmware sends events
+Ask Alok for the **server address** in his sketch. It is usually a constant like
+`SERVER_URL`, `serverName` or `host` + `port`, plus the Wi-Fi SSID and password. Reading it doesn't
+change anything. It will look like one of these:
+
+| Firmware posts to | What you do |
+|---|---|
+| `http://192.168.x.x:8000/api/event/hardware` (a LAN IP) | Give the laptop that IP (step 3) |
+| `http://<hostname>:8000/...` | Name the laptop that hostname, or use its IP if Alok confirms |
+| An `https://` URL | Use the ngrok URL **only** if his code handles HTTPS. Otherwise use the LAN IP |
+
+### 2. Put the laptop and the ESP32 on the same Wi-Fi
+* Use the SSID and password that are in the firmware. A **phone hotspot** with that same name and
+  password is the easiest option at a venue.
+* The ESP32-S3 only supports **2.4 GHz**. On the hotspot, turn on "Maximise compatibility" (iPhone)
+  or pick the 2.4 GHz band (Android).
+
+### 3. Make the laptop's IP match the firmware
+1. Connect the laptop to that Wi-Fi, then run `ipconfig` and note the **IPv4 Address**
+   of the Wi-Fi adapter.
+2. If it already equals the IP in the firmware, you're done.
+3. If not: Settings → Network & Internet → Wi-Fi → (the network) → **IP assignment → Edit →
+   Manual**. Turn on IPv4, enter the firmware's IP, subnet `255.255.255.0`, and gateway = the
+   hotspot's IP (from `ipconfig`, "Default Gateway").
+
+### 4. Open port 8000 in Windows Firewall
+Run in an **Administrator** terminal, once:
+```bat
+netsh advfirewall firewall add rule name="AegisGate 8000" dir=in action=allow protocol=TCP localport=8000
+```
+Also set the network to **Private** (Settings → Wi-Fi → network → Network profile type).
+
+### 5. Check the path before touching the board
+From a **phone on the same Wi-Fi**, open `http://<laptop-IP>:8000/health`.
+It should show `{"status":"ok",...}`. If it doesn't, the ESP32 can't connect either.
+Recheck steps 3 and 4.
+
+### 6. Power the ESP32 and tap a card
+* The backend terminal should print `POST /api/event/hardware HTTP/1.1" 200`.
+* The dashboard feed should show **Badge tap** (or **Badge rejected · <UID>** for an unknown card).
+* Open the door and the feed should show **Door opened**.
+* If nothing arrives, open Arduino IDE → Serial Monitor (the baud rate is in Alok's sketch) and look
+  for Wi-Fi or HTTP errors. `-1` / `connection refused` points to steps 2–4.
+
+### 7. Register the real cards
+Unknown cards appear as **Badge rejected · <UID>**. Copy each UID into
+`backend/app/badges.py`, restart the backend, and tap again. If Alok's firmware already sends
+`holder_name`, cards are accepted automatically (`AUTHORIZE_BY_HOLDER_NAME=true`).
+
+### 8. Door-closed limitation
+The restricted script sends only `DOOR_OPEN`. Forced-door detection works. **Door held open**
+needs a close event, and it switches on automatically if the firmware ever sends `DOOR_CLOSE`.
+Until then, show it with the **Held open** demo button. Say so to the judges rather than faking it.
+
+---
+
+## Part D — Webcam placement (so counts are clean)
+
+* The pink line is the doorway. The grey dashed lines either side are the **arm zone**. A person
+  counts only when they go from beyond one dashed line to beyond the other. Standing or sitting
+  near the line never counts.
+* Point the camera **across** the doorway so people walk sideways through the frame, from left
+  (outside) to right (inside). If your door runs the other way, press `r` (reverse) or `o` (horizontal line).
+* Don't test by sitting in front of the laptop with the line through your body. Stand up and walk across.
+* Track numbers (1, 21, 34…) are just tracker IDs, not people's identities. See the main README.
+
+## Demo-day checklist
+1. Hotspot on (2.4 GHz) → laptop connected → `ipconfig` shows the firmware's IP.
+2. Backend → vision → ngrok running.
+3. Phone check: `http://<laptop-IP>:8000/health` works.
+4. Dashboard on Streamlit Cloud shows **LIVE LINK** and **SENTRY ONLINE**.
+5. Tap a card, then walk one person across: **Authorised entry**. Walk two people across: **Tailgating**, with a PDF in the feed.

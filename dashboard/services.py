@@ -6,18 +6,21 @@ so the panels refresh within about a second of any event.
 """
 import json
 import os
+import sys
 import threading
 import time
 from collections import deque
 from dataclasses import dataclass
 from functools import partial
 from typing import Optional
+from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
 import streamlit as st
 
 NGROK = {"ngrok-skip-browser-warning": "1"}
+REPO_ROOT = Path(__file__).resolve().parents[1]      # lets the dashboard import rag/ in-process
 
 
 @dataclass
@@ -53,7 +56,7 @@ def _get(name: str, default: str = "") -> str:
 def settings() -> Settings:
     return Settings(
         backend_url=_get("BACKEND_URL", "http://localhost:8000").rstrip("/"),
-        rag_url=_get("RAG_URL", "http://localhost:8100").rstrip("/"),
+        rag_url=_get("RAG_URL", "embedded").rstrip("/"),
         control_token=_get("CONTROL_TOKEN"),
         agent_token=_get("AGENT_TOKEN"),
         camera_mode=_get("CAMERA_MODE", "auto").lower(),
@@ -172,12 +175,33 @@ def post(cfg: Settings, path: str) -> tuple:
         return False, exc.__class__.__name__
 
 
+@st.cache_resource
+def _embedded_engine(backend_url: str):
+    """Runs the RAG engine inside the Streamlit process (no separate server needed)."""
+    for key in ("LLM_API_KEY", "GROK_API_KEY", "XAI_API_KEY", "GROQ_API_KEY", "PRUNE_API_KEY", "OPENAI_API_KEY",
+                "LLM_PROVIDER", "LLM_BASE_URL", "LLM_MODEL", "PRUNE_MODEL", "RAG_REDACT_NAMES"):
+        value = _get(key)
+        if value:
+            os.environ[key] = value
+    os.environ["BACKEND_URL"] = backend_url
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from rag import engine
+    return engine
+
+
 def ask_agent(cfg: Settings, question: str) -> dict:
+    if cfg.rag_url.lower() in ("", "embedded", "local"):
+        try:
+            return {**_embedded_engine(cfg.backend_url).answer(question), "where": "embedded"}
+        except Exception as exc:
+            return {"answer": f"Embedded assistant failed ({exc.__class__.__name__}: {exc}).",
+                    "sources": [], "mode": "error"}
     try:
         r = _http.post(f"{cfg.rag_url}/ask", json={"question": question}, timeout=40,
                        headers={"X-Agent-Token": cfg.agent_token} if cfg.agent_token else None)
         r.raise_for_status()
-        return r.json()
+        return {**r.json(), "where": "remote"}
     except Exception as exc:
         return {"answer": f"The assistant is unreachable at {cfg.rag_url} ({exc.__class__.__name__}).",
                 "sources": [], "mode": "error"}

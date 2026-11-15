@@ -16,9 +16,12 @@ keeps the evidence, and shows it all live on a Streamlit SOC dashboard.
  └──────────────┬──────────────────────────────────┬────────────────┘
                 │ WS push + REST                    │ GET /api/incidents
                 ▼                                   ▼
-   Streamlit dashboard (Amandeep)        RAG agent on Maritime
-   live feed · PDFs · evidence    ◀────  BM25 retrieval + LLM via Prune
+   Streamlit dashboard (Amandeep)  ◀──  built-in RAG assistant
+   live feed · PDFs · evidence          BM25 retrieval + LLM (Grok / Groq)
 ```
+
+> **Quick start for the demo:** see [`docs/CONNECT_EVERYTHING.md`](docs/CONNECT_EVERYTHING.md)
+> (one Streamlit dashboard + ESP32 + webcam).
 
 ## Folders and owners
 
@@ -28,13 +31,15 @@ keeps the evidence, and shows it all live on a Streamlit SOC dashboard.
 | `vision/` | Abhinav | ML module: YOLOv8n person detector + ByteTrack tracker, direction-aware tripwire, backend client |
 | `backend/` | Tanvi | FastAPI: hardware/vision adapters, correlator, rule-based risk, evidence store, PDF reports, WebSocket |
 | `dashboard/` | Amandeep | Streamlit SOC dashboard (theme `#0F1B3D` / `#FFFFFF` / `#FF3D8B`) |
-| `rag/` | team | Incident assistant: retrieval over incidents + SOPs, LLM via **Prune**, deployable on **Maritime** |
+| `rag/` | team | Incident assistant: retrieval over incidents + SOPs, LLM via your **Grok/Groq** key, runs inside the dashboard |
 | `tests/` | team | The five demo scenarios + tripwire tests (`pytest -q`) |
 
 ## The four features
 
 1. **Dynamic risk scoring (0-100, rule-based).** `backend/app/core/risk.py`. Every incident stores each factor, its points and the reason. Base points: rejected badge 15, held open 25, tailgating 45, unauthorised entry 55, forced door 60. Context points are added for extra people, nearby forced doors, rejected badges, a held door and repeat incidents. Bands: LOW <25, MEDIUM <50, HIGH <75, CRITICAL. The dashboard sidebar shows the full rule table.
-2. **Direction-aware tracking.** `vision/tripwire.py`. Each track id keeps a stable side of the line. A crossing counts only after the person is confirmed on the other side, outside a dead band, and a per-track cooldown applies. The backend also drops repeats of the same (track, direction).
+2. **Direction-aware tracking.** `vision/tripwire.py`. A track must be seen clearly on one side (12 % of the frame from the line, shown as grey dashed lines), then clearly on the other side for 2 frames, before it counts. Standing or swaying near the line never counts. A 3 s per-track cooldown applies, and the backend also drops repeats of the same (track, direction).
+
+   **Track numbers** (1, 21, 34…) are ByteTrack IDs: a counter, not an identity. A new number is used whenever the tracker starts a new track (including brief false detections) or loses a person for too long. That's why there are gaps. `vision/aegis_bytetrack.yaml` reduces this. "Unique people" only counts tracks that lived at least 5 frames.
 3. **Door sensor correlation.** `backend/app/core/correlator.py`. An authorised tap opens an 8 s session for one person (plus 3 s grace for late camera events). A door opening without an authorised tap in the last 6 s is a forced door (same rule as the restricted script). A door open past 10 s is held open.
 4. **Evidence reports.** Each incident keeps timestamps, badge, session, every crossing with its snapshot, door times and the risk breakdown. **PDF download lives in the right-hand live feed only.**
 
@@ -75,7 +80,7 @@ python -m vision.main --camera 0                            :: 3 webcam tracker 
 streamlit run dashboard/app.py                              :: 4 dashboard http://localhost:8501
 ```
 
-Vision options: `--camera 1` (USB camera), `--orientation horizontal`, `--position 0.4`,
+Vision options: `--camera 1` (USB camera), `--orientation horizontal`, `--position 0.4`, `--arm 0.15`,
 `--invert` (swap IN/OUT), `--no-mirror`, `--source video.mp4`, `--classic` (no PyTorch).
 Keys in the preview: `a`/`d` move the line, `o` vertical/horizontal, `r` reverse direction,
 `m` mirror, `c` clear, `q` quit.
@@ -97,73 +102,36 @@ Live demo: tap a real card, then walk two people across the line in front of the
 
 ---
 
-## External services: what you need and how to set them up
+## External services
 
 | Service | Needed for | Required? |
 |---|---|---|
-| **Prune** | LLM calls from the RAG agent (cost control, key vault, Shield) | Yes for LLM answers (without it the agent quotes the top records) |
-| **Maritime** | Hosting the RAG agent | Yes for the hackathon requirement |
-| **ngrok** | Giving the laptop backend a public HTTPS URL for Streamlit Cloud + Maritime | Only when the dashboard / agent run in the cloud |
-| **Streamlit Community Cloud** | Hosting the dashboard | Yes, to "host the dash on Streamlit" |
+| **LLM key**: xAI Grok (`xai-…`) or Groq (`gsk_…`) | The incident assistant's answers | Recommended. Without a key the assistant quotes the top matching records |
+| **ngrok** | A public HTTPS address for the laptop backend, so Streamlit Cloud can read it | Only when the dashboard runs on Streamlit Cloud |
+| **Streamlit Community Cloud** | Hosting the dashboard | Yes, to host the dashboard |
 | **Supabase** | Cloud Postgres instead of local SQLite | Optional |
 
-The backend must run on the laptop because the ESP32 and the webcam are there.
+Prune (`prune_…` keys) and Maritime (the repo-root `Dockerfile`) are still supported but **not
+needed**. The assistant runs inside the Streamlit app.
 
-### 1. Prune (LLM gateway)
-1. Activate your free Prune Pro month at withprune.com and open the dashboard.
-2. **Connect → Providers**: add your OpenAI key (it stays in Prune's vault).
-3. **API Keys**: create a key (starts with `prune_`).
-4. Put it in `rag\.env` (copy `rag\.env.example`): `PRUNE_API_KEY=prune_...`
-   Model defaults to `gpt-4o-mini` (`PRUNE_MODEL`). Restart `python -m rag.start`.
-5. Check: ask a question in the dashboard sidebar. It should say *"LLM · gpt-4o-mini via Prune"*.
-   Every call carries `X-Prune-Feature-Id: aegisgate_incident_rag`, so it shows up grouped in Prune.
+### LLM key (Grok or Groq)
+1. Check the key: `python scripts\test_llm_key.py <your-key>`. It prints the provider, the model it
+   picked and a test reply. "Key REJECTED" usually means credits or billing aren't set up on the console.
+2. Local: put `LLM_API_KEY = "<your-key>"` in `.streamlit\secrets.toml`, then restart Streamlit.
+3. Streamlit Cloud: App → Settings → **Secrets** → add the same line → Save.
+4. Ask something in the sidebar. It should say *"LLM · <model> via xAI Grok"* (or *Groq*).
 
-### 2. ngrok (public URL for the backend)
-1. Sign up at ngrok.com, copy your authtoken, then: `ngrok config add-authtoken <TOKEN>`
-2. Claim your free static domain (Dashboard → Domains).
-3. Run alongside the backend: `ngrok http 8000 --url=<your-name>.ngrok-free.app`
-   (older ngrok versions use `--domain=` instead of `--url=`).
-4. Set `CONTROL_TOKEN=<some long random string>` in `backend\.env` so strangers can't trigger
-   the demo or reset endpoints. The ESP32 endpoint stays open because the restricted firmware
-   can't send headers.
+The provider is detected from the key prefix, and the model is picked from what your key can use.
+To force a model, set `LLM_MODEL`. Never commit the key, because `secrets.toml` is git-ignored.
 
-### 3. Maritime (host the RAG agent)
-The repo-root `Dockerfile` builds only `rag/`, binds `$PORT`, and serves `/health` and `/chat`
-(Maritime's contract) plus `/ask`.
-1. Sign up at maritime.sh with participant code **VIHAANX** (3 months of Scale free).
-2. Install the CLI (needs Node 18+): `npm install -g maritime-cli`, then `maritime login`.
-3. Push this repo to GitHub, then:
-   ```bat
-   maritime create aegisgate-rag --repo https://github.com/tgoel315-tech/AegisGate
-   maritime env set aegisgate-rag PRUNE_API_KEY=prune_...
-   maritime env set aegisgate-rag BACKEND_URL=https://<your-name>.ngrok-free.app
-   maritime env set aegisgate-rag AGENT_TOKEN=<random string>
-   maritime deploy aegisgate-rag -w
-   maritime chat aegisgate-rag "how many incidents today?"
-   ```
-4. Make the URL public with `maritime agents url visibility <agent_id> public` and copy it.
-   If a flag differs in your CLI version, run `maritime guide --json` or see maritime.sh/docs/cli.
+### ngrok and Streamlit Cloud
+See [`docs/CONNECT_EVERYTHING.md`](docs/CONNECT_EVERYTHING.md) for the full step-by-step,
+including the ESP32 hardware connection.
 
-### 4. Streamlit Community Cloud (host the dashboard)
-1. share.streamlit.io → *Create app* → repo `tgoel315-tech/AegisGate`, branch `main`,
-   **main file `dashboard/app.py`**. Under *Advanced settings* pick Python 3.11.
-2. *Advanced settings → Secrets*, paste:
-   ```toml
-   BACKEND_URL = "https://<your-name>.ngrok-free.app"
-   RAG_URL = "https://<your-maritime-agent-url>"
-   CONTROL_TOKEN = "<same as backend .env>"
-   AGENT_TOKEN = "<same as on Maritime>"
-   CAMERA_MODE = "auto"
-   TIMEZONE = "Asia/Kolkata"
-   ```
-3. Deploy. The theme comes from `.streamlit/config.toml`. With a remote backend the camera panel
-   polls one frame per second. Locally it streams MJPEG.
-
-### 5. Supabase (optional)
+### Supabase (optional)
 1. supabase.com → New project → note the database password.
 2. Project Settings → Database → Connection string → **Session pooler** → copy it.
 3. In `backend\.env`: `DATABASE_URL=postgresql+psycopg://postgres.<ref>:<password>@<host>:5432/postgres`
-   Tables are created automatically on startup. Snapshots stay on the laptop disk.
 
 ---
 
